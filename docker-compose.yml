@@ -1,0 +1,111 @@
+services:
+
+  # ─── Infrastruttura ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-scarlet}
+      POSTGRES_USER: ${POSTGRES_USER:-scarlet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scarlet}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Servizi Applicativi ──────────────────────────────────────────────────────
+
+  memory:
+    build:
+      context: .
+      dockerfile: memory/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  cortex:
+    build:
+      context: .
+      dockerfile: cortex/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      memory:
+        condition: service_started
+
+  volition:
+    build:
+      context: .
+      dockerfile: volition/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      cortex:
+        condition: service_started
+
+  reflection:
+    build:
+      context: .
+      dockerfile: reflection/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    env_file: .env
+    depends_on:
+      memory:
+        condition: service_started
+
+  executive_arms:
+    build:
+      context: .
+      dockerfile: executive_arms/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    env_file: .env
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      cortex:
+        condition: service_started
+
+volumes:
+  postgres_data:

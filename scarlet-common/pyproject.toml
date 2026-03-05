@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scarlet-common"
+version = "0.1.0"
+description = "Pacchetto condiviso per il sistema Scarlet: modelli Pydantic, interfacce e utility."
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.5.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scarlet_common*"]
